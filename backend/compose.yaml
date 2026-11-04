@@ -1,0 +1,41 @@
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: event_manager_postgres
+    environment:
+      POSTGRES_DB: event_manager
+      POSTGRES_USER: event_manager
+      POSTGRES_PASSWORD: event_manager_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U event_manager -d event_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: event_manager_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: event_manager
+      RABBITMQ_DEFAULT_PASS: event_manager_dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
