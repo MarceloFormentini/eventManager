@@ -1,4 +1,4 @@
-package br.com.formentini.eventManager.instituitiontype;
+package br.com.formentini.eventManager.institutiontype;
 
 import org.junit.jupiter.api.Test;
 
