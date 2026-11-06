@@ -28,7 +28,7 @@ public class Institution {
     protected Institution() {
     }
 
-    public Institution(String name, TypeInstitution typeInstitution) {
+    public Institution(TypeInstitution typeInstitution, String name) {
         this.name = name;
         this.typeInstitution = typeInstitution;
     }
