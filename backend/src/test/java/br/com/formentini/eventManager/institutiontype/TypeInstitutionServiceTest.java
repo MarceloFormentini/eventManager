@@ -1,4 +1,4 @@
-package br.com.formentini.eventManager.instituitiontype;
+package br.com.formentini.eventManager.institutiontype;
 
 import br.com.formentini.eventManager.institutiontype.TypeInstitution;
 import br.com.formentini.eventManager.institutiontype.TypeInstitutionRepository;
