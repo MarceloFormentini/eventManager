@@ -29,7 +29,7 @@ public class Location {
     protected Location() {
     }
 
-    public Location(String name, Institution institution) {
+    public Location(Institution institution, String name) {
         this.name = name;
         this.institution = institution;
     }
