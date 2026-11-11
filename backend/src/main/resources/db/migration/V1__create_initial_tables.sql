@@ -36,7 +36,7 @@ CREATE TABLE event (
     description TEXT,
     start_date TIMESTAMPTZ NOT NULL,
     end_date TIMESTAMPTZ NOT NULL,
-    active BOOLEAN NOT NULL DEFAULT TRUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT fk_event_location
@@ -45,7 +45,15 @@ CREATE TABLE event (
         ON DELETE RESTRICT,
 
     CONSTRAINT chk_event_dates
-        CHECK (end_date >= start_date)
+        CHECK (end_date >= start_date),
+
+    CONSTRAINT chk_event_status
+        CHECK (status IN (
+            'DRAFT',
+            'PUBLISHED',
+            'CANCELLED',
+            'COMPLETED'
+        ))
 );
 
 CREATE INDEX idx_institution_type
@@ -59,3 +67,6 @@ CREATE INDEX idx_event_location
 
 CREATE INDEX idx_event_start_date
     ON event (start_date);
+
+CREATE INDEX idx_event_status
+    ON event(status);

@@ -1,6 +1,7 @@
 
 package br.com.formentini.eventManager.shared.exception;
 
+import br.com.formentini.eventManager.event.EventScheduleConflictException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,6 +20,22 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException exception) {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(EventScheduleConflictException.class)
+    public ResponseEntity<Map<String, String>> handleEventScheduleConflict(
+            EventScheduleConflictException exception) {
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", exception.getMessage()));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidArgument(
+            IllegalArgumentException exception) {
+
+        return ResponseEntity.badRequest()
                 .body(Map.of("error", exception.getMessage()));
     }
 

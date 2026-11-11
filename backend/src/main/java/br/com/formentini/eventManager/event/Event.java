@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.time.OffsetDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 
+import br.com.formentini.eventManager.event.enums.EventStatus;
 import br.com.formentini.eventManager.location.Location;
 
 
@@ -32,8 +33,9 @@ public class Event {
     @Column(name = "end_date", nullable = false)
     private OffsetDateTime endDate;
 
-    @Column(nullable = false)
-    private Boolean active = true;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private EventStatus status;
 
     @CreationTimestamp
     @Column(name = "created_at", insertable = false, updatable = false)
@@ -47,6 +49,22 @@ public class Event {
             String title,
             String description,
             OffsetDateTime startDate,
+            OffsetDateTime endDate,
+            EventStatus status
+    ) {
+        this.location = location;
+        this.title = title;
+        this.description = description;
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.status = status;
+    }
+
+    public void update(
+            Location location,
+            String title,
+            String description,
+            OffsetDateTime startDate,
             OffsetDateTime endDate
     ) {
         this.location = location;
@@ -54,7 +72,10 @@ public class Event {
         this.description = description;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.active = true;
+    }
+
+    public void changeStatus(EventStatus status) {
+        this.status = status;
     }
 
     public Long getId() {
@@ -101,12 +122,8 @@ public class Event {
         this.endDate = endDate;
     }
 
-    public Boolean getActive() {
-        return active;
-    }
-
-    public void setActive(Boolean active) {
-        this.active = active;
+    public EventStatus getStatus() {
+        return status;
     }
 
     public OffsetDateTime getCreatedAt() {
