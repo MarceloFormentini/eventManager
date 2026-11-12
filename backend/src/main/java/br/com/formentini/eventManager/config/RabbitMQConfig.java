@@ -6,6 +6,10 @@ import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
+
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 public class RabbitMQConfig {
@@ -33,5 +37,12 @@ public class RabbitMQConfig {
                 .bind(eventCreatedQueue)
                 .to(eventExchange)
                 .with(EVENT_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public MessageConverter jacksonJsonMessageConverter(
+            JsonMapper jsonMapper
+    ) {
+        return new JacksonJsonMessageConverter(jsonMapper);
     }
 }
