@@ -3,6 +3,7 @@ package br.com.formentini.eventManager.event;
 import br.com.formentini.eventManager.event.dto.EventRequest;
 import br.com.formentini.eventManager.event.dto.EventResponse;
 import br.com.formentini.eventManager.event.enums.EventStatus;
+import br.com.formentini.eventManager.event.messaging.EventCreated;
 import br.com.formentini.eventManager.location.Location;
 import br.com.formentini.eventManager.location.LocationRepository;
 import br.com.formentini.eventManager.shared.exception.ResourceNotFoundException;
@@ -10,9 +11,11 @@ import br.com.formentini.eventManager.shared.exception.ResourceNotFoundException
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,6 +33,9 @@ class EventServiceTest {
 
     @Mock
     private LocationRepository locationRepository;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private EventService eventService;
@@ -60,20 +66,40 @@ class EventServiceTest {
 
     @Test
     void shouldCreateEventWhenRequestIsValidAndThereIsNoScheduleConflict() {
+        Event savedEvent = mock(Event.class);
         when(locationRepository.findById(10L)).thenReturn(Optional.of(location));
         when(eventRepository.existsByLocationIdAndStartDateLessThanAndEndDateGreaterThan(
                 10L, end, start)).thenReturn(false);
-        when(eventRepository.save(any(Event.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(eventRepository.save(any(Event.class))).thenReturn(savedEvent);
+        when(savedEvent.getId()).thenReturn(123L);
+        when(savedEvent.getTitle()).thenReturn(validRequest.title());
+        when(savedEvent.getDescription()).thenReturn(validRequest.description());
+        when(savedEvent.getStartDate()).thenReturn(start);
+        when(savedEvent.getEndDate()).thenReturn(end);
+        when(savedEvent.getStatus()).thenReturn(EventStatus.DRAFT);
+        when(savedEvent.getLocation()).thenReturn(location);
 
         EventResponse response = eventService.create(validRequest);
+
+        EventCreated expectedEvent = new EventCreated(
+                123L,
+                validRequest.title(),
+                validRequest.description(),
+                start,
+                end,
+                EventStatus.DRAFT,
+                10L,
+                "Auditório Principal"
+        );
 
         assertEquals("Conferência de Tecnologia", response.title());
         assertEquals(EventStatus.DRAFT, response.status());
         assertEquals(10L, response.locationId());
         assertEquals("Auditório Principal", response.locationName());
 
-        verify(eventRepository).save(any(Event.class));
+        InOrder creationOrder = inOrder(eventRepository, applicationEventPublisher);
+        creationOrder.verify(eventRepository).save(any(Event.class));
+        creationOrder.verify(applicationEventPublisher).publishEvent(expectedEvent);
     }
 
     @Test
@@ -84,7 +110,11 @@ class EventServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> eventService.create(request));
 
-        verifyNoInteractions(locationRepository, eventRepository);
+        verifyNoInteractions(
+                locationRepository,
+                eventRepository,
+                applicationEventPublisher
+        );
     }
 
     @Test
@@ -109,6 +139,7 @@ class EventServiceTest {
                 .existsByLocationIdAndStartDateLessThanAndEndDateGreaterThan(
                         anyLong(), any(), any());
         verify(eventRepository, never()).save(any());
+        verifyNoInteractions(applicationEventPublisher);
     }
 
     @Test
@@ -121,6 +152,7 @@ class EventServiceTest {
                 () -> eventService.create(validRequest));
 
         verify(eventRepository, never()).save(any());
+        verifyNoInteractions(applicationEventPublisher);
     }
 
     @Test
