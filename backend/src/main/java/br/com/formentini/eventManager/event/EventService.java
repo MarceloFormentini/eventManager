@@ -6,8 +6,11 @@ import br.com.formentini.eventManager.event.enums.EventStatus;
 import br.com.formentini.eventManager.location.Location;
 import br.com.formentini.eventManager.location.LocationRepository;
 import br.com.formentini.eventManager.shared.exception.ResourceNotFoundException;
+import br.com.formentini.eventManager.event.messaging.EventCreated;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 
@@ -16,13 +19,16 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final LocationRepository locationRepository;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public EventService(
             EventRepository eventRepository,
-            LocationRepository locationRepository
+            LocationRepository locationRepository,
+            ApplicationEventPublisher applicationEventPublisher
     ) {
         this.eventRepository = eventRepository;
         this.locationRepository = locationRepository;
+        this.applicationEventPublisher = applicationEventPublisher;
     }
 
     @Transactional
@@ -41,7 +47,24 @@ public class EventService {
                 request.status()
         );
 
-        return toResponse(eventRepository.save(event));
+        Event savedEvent = eventRepository.save(event);
+
+        EventResponse response = toResponse(savedEvent);
+
+        applicationEventPublisher.publishEvent(
+                new EventCreated(
+                        response.id(),
+                        response.title(),
+                        response.description(),
+                        response.startDate(),
+                        response.endDate(),
+                        response.status(),
+                        response.locationId(),
+                        response.locationName()
+                )
+        );
+
+        return response;
     }
 
     @Transactional(readOnly = true)
