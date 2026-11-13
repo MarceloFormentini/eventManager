@@ -56,6 +56,32 @@ CREATE TABLE event (
         ))
 );
 
+
+CREATE TABLE outbox_event (
+    id UUID PRIMARY KEY,
+
+    aggregate_type VARCHAR(100) NOT NULL,
+    aggregate_id BIGINT NOT NULL,
+
+    event_type VARCHAR(150) NOT NULL,
+    payload TEXT NOT NULL,
+
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    attempts INTEGER NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_at TIMESTAMPTZ,
+    next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    last_error TEXT,
+
+    CONSTRAINT ck_outbox_event_status
+        CHECK (status IN ('PENDING', 'PUBLISHED', 'FAILED')),
+
+    CONSTRAINT ck_outbox_event_attempts
+        CHECK (attempts >= 0)
+);
+
 CREATE INDEX idx_institution_type
     ON institution (type_institution_id);
 
@@ -70,3 +96,9 @@ CREATE INDEX idx_event_start_date
 
 CREATE INDEX idx_event_status
     ON event(status);
+
+CREATE INDEX idx_outbox_event_pending
+    ON outbox_event (status, next_attempt_at, created_at);
+
+CREATE INDEX idx_outbox_event_aggregate
+    ON outbox_event (aggregate_type, aggregate_id);
