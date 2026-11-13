@@ -2,7 +2,9 @@ package br.com.formentini.eventManager.config;
 
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,6 +20,10 @@ public class RabbitMQConfig {
     public static final String EVENT_CREATED_QUEUE = "event.created.queue";
     public static final String EVENT_CREATED_ROUTING_KEY = "event.created.v1";
 
+    public static final String EVENT_DLX = "event.dlx";
+    public static final String EVENT_CREATED_DLQ = "event.created.dlq";
+    public static final String EVENT_CREATED_DLQ_ROUTING_KEY = "event.created.failed";
+
     @Bean
     public TopicExchange eventExchange() {
         return new TopicExchange(EVENT_EXCHANGE, true, false);
@@ -25,7 +31,14 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue eventCreatedQueue() {
-        return new Queue(EVENT_CREATED_QUEUE, true);
+        return QueueBuilder
+                .durable(EVENT_CREATED_QUEUE)
+                .withArgument("x-dead-letter-exchange", EVENT_DLX)
+                .withArgument(
+                        "x-dead-letter-routing-key",
+                        EVENT_CREATED_DLQ_ROUTING_KEY
+                )
+                .build();
     }
 
     @Bean
@@ -37,6 +50,29 @@ public class RabbitMQConfig {
                 .bind(eventCreatedQueue)
                 .to(eventExchange)
                 .with(EVENT_CREATED_ROUTING_KEY);
+    }
+
+    @Bean
+    public DirectExchange eventDeadLetterExchange() {
+        return new DirectExchange(EVENT_DLX, true, false);
+    }
+
+    @Bean
+    public Queue eventCreatedDeadLetterQueue() {
+        return QueueBuilder
+                .durable(EVENT_CREATED_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Binding eventCreatedDeadLetterBinding(
+            Queue eventCreatedDeadLetterQueue,
+            DirectExchange eventDeadLetterExchange
+    ) {
+        return BindingBuilder
+                .bind(eventCreatedDeadLetterQueue)
+                .to(eventDeadLetterExchange)
+                .with(EVENT_CREATED_DLQ_ROUTING_KEY);
     }
 
     @Bean
