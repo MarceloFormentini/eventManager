@@ -62,3 +62,46 @@ jobs:
           RABBITMQ_USERNAME: ci
           RABBITMQ_PASSWORD: ci-password
         run: bash ./mvnw --batch-mode --no-transfer-progress verify
+
+      - name: Add coverage to job summary
+        if: always()
+        run: |
+          report="backend/target/site/jacoco/jacoco.xml"
+          if [ ! -f "$report" ]; then
+            echo "JaCoCo report was not generated." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          python3 - "$report" <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import sys
+          import xml.etree.ElementTree as ET
+
+          root = ET.parse(sys.argv[1]).getroot()
+          counters = {counter.attrib["type"]: counter.attrib for counter in root.findall("counter")}
+
+          def percentage(counter):
+              values = counters.get(counter)
+              if values is None:
+                  return "N/A"
+              missed = int(values["missed"])
+              covered = int(values["covered"])
+              total = missed + covered
+              return f"{covered / total * 100:.1f}%" if total else "N/A"
+
+          print("## Backend test coverage")
+          print()
+          print("| Metric | Coverage |")
+          print("| --- | ---: |")
+          print(f"| Instructions | {percentage('INSTRUCTION')} |")
+          print(f"| Branches | {percentage('BRANCH')} |")
+          print(f"| Lines | {percentage('LINE')} |")
+          PY
+
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jacoco-report
+          path: backend/target/site/jacoco/
+          if-no-files-found: ignore
+          retention-days: 30
