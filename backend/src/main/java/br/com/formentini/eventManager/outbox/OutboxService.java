@@ -1,4 +1,3 @@
-
 package br.com.formentini.eventManager.outbox;
 
 import br.com.formentini.eventManager.outbox.OutboxEvent;
@@ -8,6 +7,8 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -25,6 +26,7 @@ public class OutboxService {
         this.objectMapper = objectMapper;
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     public void save(
             String aggregateType,
             Long aggregateId,

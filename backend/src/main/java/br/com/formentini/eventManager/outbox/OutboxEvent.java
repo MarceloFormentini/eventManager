@@ -66,5 +66,47 @@ public class OutboxEvent {
         this.nextAttemptAt = this.createdAt;
     }
 
-    // Getters e setters
+    public UUID getId() {
+        return id;
+    }
+
+    public String getAggregateType() {
+        return aggregateType;
+    }
+
+    public Long getAggregateId() {
+        return aggregateId;
+    }
+
+    public String getEventType() {
+        return eventType;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public OutboxStatus getStatus() {
+        return status;
+    }
+
+    public Integer getAttempts() {
+        return attempts;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public OffsetDateTime getPublishedAt() {
+        return publishedAt;
+    }
+
+    public OffsetDateTime getNextAttemptAt() {
+        return nextAttemptAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
 }
