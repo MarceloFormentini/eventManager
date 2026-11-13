@@ -7,6 +7,7 @@ import br.com.formentini.eventManager.event.messaging.EventCreated;
 import br.com.formentini.eventManager.location.Location;
 import br.com.formentini.eventManager.location.LocationRepository;
 import br.com.formentini.eventManager.shared.exception.ResourceNotFoundException;
+import br.com.formentini.eventManager.outbox.OutboxService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,6 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -35,7 +35,7 @@ class EventServiceTest {
     private LocationRepository locationRepository;
 
     @Mock
-    private ApplicationEventPublisher applicationEventPublisher;
+    private OutboxService outboxService;
 
     @InjectMocks
     private EventService eventService;
@@ -67,10 +67,17 @@ class EventServiceTest {
     @Test
     void shouldCreateEventWhenRequestIsValidAndThereIsNoScheduleConflict() {
         Event savedEvent = mock(Event.class);
-        when(locationRepository.findById(10L)).thenReturn(Optional.of(location));
+
+        when(locationRepository.findById(10L))
+                .thenReturn(Optional.of(location));
+
         when(eventRepository.existsByLocationIdAndStartDateLessThanAndEndDateGreaterThan(
-                10L, end, start)).thenReturn(false);
-        when(eventRepository.save(any(Event.class))).thenReturn(savedEvent);
+                10L, end, start
+        )).thenReturn(false);
+
+        when(eventRepository.save(any(Event.class)))
+                .thenReturn(savedEvent);
+
         when(savedEvent.getId()).thenReturn(123L);
         when(savedEvent.getTitle()).thenReturn(validRequest.title());
         when(savedEvent.getDescription()).thenReturn(validRequest.description());
@@ -97,10 +104,18 @@ class EventServiceTest {
         assertEquals(10L, response.locationId());
         assertEquals("Auditório Principal", response.locationName());
 
-        InOrder creationOrder = inOrder(eventRepository, applicationEventPublisher);
+        InOrder creationOrder = inOrder(eventRepository, outboxService);
+
         creationOrder.verify(eventRepository).save(any(Event.class));
-        creationOrder.verify(applicationEventPublisher).publishEvent(expectedEvent);
+
+        creationOrder.verify(outboxService).save(
+                "EVENT",
+                123L,
+                "EventCreated",
+                expectedEvent
+        );
     }
+
 
     @Test
     void shouldThrowWhenCreatingEventWithEndDateEqualToStartDate() {
@@ -113,7 +128,7 @@ class EventServiceTest {
         verifyNoInteractions(
                 locationRepository,
                 eventRepository,
-                applicationEventPublisher
+                outboxService
         );
     }
 
@@ -139,7 +154,7 @@ class EventServiceTest {
                 .existsByLocationIdAndStartDateLessThanAndEndDateGreaterThan(
                         anyLong(), any(), any());
         verify(eventRepository, never()).save(any());
-        verifyNoInteractions(applicationEventPublisher);
+        verifyNoInteractions(outboxService);
     }
 
     @Test
@@ -152,7 +167,7 @@ class EventServiceTest {
                 () -> eventService.create(validRequest));
 
         verify(eventRepository, never()).save(any());
-        verifyNoInteractions(applicationEventPublisher);
+        verifyNoInteractions(outboxService);
     }
 
     @Test

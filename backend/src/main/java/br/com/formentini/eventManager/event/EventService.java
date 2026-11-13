@@ -3,14 +3,14 @@ package br.com.formentini.eventManager.event;
 import br.com.formentini.eventManager.event.dto.EventRequest;
 import br.com.formentini.eventManager.event.dto.EventResponse;
 import br.com.formentini.eventManager.event.enums.EventStatus;
+import br.com.formentini.eventManager.event.messaging.EventCreated;
 import br.com.formentini.eventManager.location.Location;
 import br.com.formentini.eventManager.location.LocationRepository;
+import br.com.formentini.eventManager.outbox.OutboxService;
 import br.com.formentini.eventManager.shared.exception.ResourceNotFoundException;
-import br.com.formentini.eventManager.event.messaging.EventCreated;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 
@@ -19,16 +19,16 @@ public class EventService {
 
     private final EventRepository eventRepository;
     private final LocationRepository locationRepository;
-    private final ApplicationEventPublisher applicationEventPublisher;
+    private final OutboxService outboxService;
 
     public EventService(
             EventRepository eventRepository,
             LocationRepository locationRepository,
-            ApplicationEventPublisher applicationEventPublisher
+            OutboxService outboxService
     ) {
         this.eventRepository = eventRepository;
         this.locationRepository = locationRepository;
-        this.applicationEventPublisher = applicationEventPublisher;
+        this.outboxService = outboxService;
     }
 
     @Transactional
@@ -51,17 +51,22 @@ public class EventService {
 
         EventResponse response = toResponse(savedEvent);
 
-        applicationEventPublisher.publishEvent(
-                new EventCreated(
-                        response.id(),
-                        response.title(),
-                        response.description(),
-                        response.startDate(),
-                        response.endDate(),
-                        response.status(),
-                        response.locationId(),
-                        response.locationName()
-                )
+        EventCreated eventCreated = new EventCreated(
+                response.id(),
+                response.title(),
+                response.description(),
+                response.startDate(),
+                response.endDate(),
+                response.status(),
+                response.locationId(),
+                response.locationName()
+        );
+
+        outboxService.save(
+                "EVENT",
+                response.id(),
+                "EventCreated",
+                eventCreated
         );
 
         return response;
