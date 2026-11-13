@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,11 +22,20 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.OffsetDateTime;
 
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(
-        classes = RabbitMQIntegrationTest.TestApplication.class
+        classes = RabbitMQIntegrationTest.TestApplication.class,
+        properties = {
+                "spring.rabbitmq.publisher-confirm-type=correlated",
+                "spring.rabbitmq.publisher-returns=true",
+                "spring.rabbitmq.template.mandatory=true"
+        }
 )
+
 @Testcontainers
 class RabbitMQIntegrationTest {
 
@@ -44,6 +54,19 @@ class RabbitMQIntegrationTest {
     private final RabbitTemplate rabbitTemplate;
     private final RabbitAdmin rabbitAdmin;
 
+    private EventCreated createEvent() {
+        return new EventCreated(
+                100L,
+                "Evento de teste",
+                "Descrição do evento",
+                OffsetDateTime.now(),
+                OffsetDateTime.now().plusHours(2),
+                EventStatus.PUBLISHED,
+                10L,
+                "Auditório principal"
+        );
+    }
+
     @Autowired
     RabbitMQIntegrationTest(
         RabbitTemplate rabbitTemplate,
@@ -56,16 +79,7 @@ class RabbitMQIntegrationTest {
     @Test
     void shouldPublishAndReceiveEventCreatedMessage() {
 
-        EventCreated event = new EventCreated(
-                1L,
-                "Evento de integração",
-                "Teste de integração com RabbitMQ",
-                OffsetDateTime.now(),
-                OffsetDateTime.now().plusHours(2),
-                EventStatus.PUBLISHED,
-                10L,
-                "Auditório principal"
-        );
+        EventCreated event = createEvent();
 
         // Garante que a infraestrutura esteja declarada.
         rabbitAdmin.initialize();
@@ -94,6 +108,61 @@ class RabbitMQIntegrationTest {
         assertEquals(event.status(), receivedEvent.status());
         assertEquals(event.locationId(), receivedEvent.locationId());
         assertEquals(event.locationName(), receivedEvent.locationName());
+    }
+
+    @Test
+    void shouldReceivePositivePublisherConfirmWhenMessageIsRouted() throws Exception {
+
+        EventCreated event = createEvent();
+
+        CorrelationData correlationData =
+                new CorrelationData(UUID.randomUUID().toString());
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
+                event,
+                correlationData
+        );
+
+        CorrelationData.Confirm confirm = correlationData.getFuture().get(5, TimeUnit.SECONDS);
+
+        assertTrue(confirm.isAck());
+        assertNull(correlationData.getReturned());
+    }
+
+    @Test
+    void shouldReturnMessageWhenNoQueueMatchesRoutingKey()
+            throws Exception {
+
+        EventCreated event = createEvent();
+
+        CorrelationData correlationData =
+                new CorrelationData(UUID.randomUUID().toString());
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                "event.invalid.routing",
+                event,
+                correlationData
+        );
+
+        CorrelationData.Confirm confirm =
+                correlationData.getFuture().get(5, TimeUnit.SECONDS);
+
+        assertTrue(confirm.isAck());
+
+        assertNotNull(correlationData.getReturned());
+
+        assertEquals(
+                "event.invalid.routing",
+                correlationData.getReturned().getRoutingKey()
+        );
+
+        assertEquals(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                correlationData.getReturned().getExchange()
+        );
     }
 
     @SpringBootConfiguration
