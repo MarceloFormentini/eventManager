@@ -43,6 +43,9 @@ public class RabbitMQConfig {
     public MessageConverter jacksonJsonMessageConverter(
             JsonMapper jsonMapper
     ) {
-        return new JacksonJsonMessageConverter(jsonMapper);
+        return new JacksonJsonMessageConverter(
+                jsonMapper,
+                "br.com.formentini.eventManager.event.messaging"
+        );
     }
 }
