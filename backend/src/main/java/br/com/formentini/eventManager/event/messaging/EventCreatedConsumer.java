@@ -14,10 +14,29 @@ public class EventCreatedConsumer {
     @RabbitListener(queues = "event.created.queue")
     public void consume(EventCreated event) {
 
-        log.info("Event created message received");
-        log.info("Event ID: {}", event.eventId());
-        log.info("Title: {}", event.title());
-        log.info("Location: {}", event.locationName());
-        log.info("Status: {}", event.status());
+        log.info(
+                "Processing EventCreated message. Event ID: {}",
+                event.eventId()
+        );
+
+        process(event);
+
+        log.info(
+                "EventCreated message processed successfully. Event ID: {}",
+                event.eventId()
+        );
+    }
+
+    private void process(EventCreated event) {
+
+        // Aqui ficará a lógica real de processamento.
+        // Exemplo: envio de notificações ou integração com outro serviço.
+
+        log.info(
+                "Event ID: {} | Title: {} | Location: {}",
+                event.eventId(),
+                event.title(),
+                event.locationName()
+        );
     }
 }
