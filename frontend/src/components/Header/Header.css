@@ -1,0 +1,85 @@
+.header {
+  background-color: #00a651;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.header-logo {
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-text {
+  color: #00a651;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.header-subtitle {
+  color: #bbf7d0;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.header-user {
+  text-align: right;
+}
+
+.user-welcome {
+  font-size: 0.875rem;
+  color: #bbf7d0;
+  margin: 0;
+}
+
+.user-version {
+  font-size: 0.75rem;
+  color: #86efac;
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .header-user {
+    text-align: center;
+  }
+}
