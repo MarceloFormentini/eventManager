@@ -33,7 +33,9 @@ public class LocationService {
 
         Location location = new Location(
             institution,
-            request.name()
+            request.name(),
+            request.capacity(),
+            request.description()
         );
 
         Location saved = locationRepository.save(location);
@@ -79,6 +81,8 @@ public class LocationService {
 
         location.setName(request.name());
         location.setInstitution(institution);
+        location.setCapacity(request.capacity());
+        location.setDescription(request.description());
 
         Location updated = locationRepository.save(location);
 
@@ -116,6 +120,8 @@ public class LocationService {
                 location.getName(),
                 location.getInstitution().getId(),
                 location.getInstitution().getName(),
+                location.getCapacity(),
+                location.getDescription(),
                 location.getCreatedAt()
         );
     }

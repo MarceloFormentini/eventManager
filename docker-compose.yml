@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: event_manager
+      POSTGRES_USER: event_manager
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-event_manager_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U event_manager -d event_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-event_manager}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-event_manager_dev}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/event_manager
+      DB_USERNAME: event_manager
+      DB_PASSWORD: ${DB_PASSWORD:-event_manager_dev}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-event_manager}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-event_manager_dev}
+    ports:
+      - "${BACKEND_PORT:-8081}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      BACKEND_API_URL: http://backend:8080
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  rabbitmq_data:

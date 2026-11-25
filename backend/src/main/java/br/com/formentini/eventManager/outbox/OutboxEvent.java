@@ -109,4 +109,20 @@ public class OutboxEvent {
     public String getLastError() {
         return lastError;
     }
+
+    public void markPublished(OffsetDateTime publishedAt) {
+        this.status = OutboxStatus.PUBLISHED;
+        this.publishedAt = publishedAt;
+        this.lastError = null;
+    }
+
+    public void markFailed(String error, OffsetDateTime nextAttemptAt, int maxAttempts) {
+        this.attempts++;
+        this.lastError = error;
+        this.nextAttemptAt = nextAttemptAt;
+
+        if (this.attempts >= maxAttempts) {
+            this.status = OutboxStatus.FAILED;
+        }
+    }
 }

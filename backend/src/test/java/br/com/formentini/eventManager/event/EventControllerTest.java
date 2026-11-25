@@ -92,7 +92,8 @@ class EventControllerTest {
         mockMvc.perform(post("/api/v1/events")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(invalidJson))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("título: O título é obrigatório"));
 
         verifyNoInteractions(eventService);
     }
@@ -183,7 +184,10 @@ class EventControllerTest {
                         .content("""
                                 {"status":"UNKNOWN"}
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(
+                        "Os dados enviados são inválidos. Verifique os campos e valores informados."
+                ));
 
         verifyNoInteractions(eventService);
     }

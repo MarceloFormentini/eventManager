@@ -6,6 +6,8 @@ import br.com.formentini.eventManager.event.dto.EventStatusRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -26,8 +28,23 @@ public class EventController {
     }
 
     @GetMapping
-    public List<EventResponse> findAll() {
-        return eventService.findAll();
+    public Object findAll(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        if (page == null && size == null) {
+            return eventService.findAll();
+        }
+
+        int pageNumber = page == null ? 0 : Math.max(page, 0);
+        int pageSize = size == null ? 20 : Math.min(Math.max(size, 1), 100);
+        Sort sortOrder = "asc".equalsIgnoreCase(direction)
+                ? Sort.by(sort).ascending()
+                : Sort.by(sort).descending();
+
+        return eventService.findAll(PageRequest.of(pageNumber, pageSize, sortOrder));
     }
 
     @GetMapping("/{id}")

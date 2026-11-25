@@ -75,6 +75,27 @@ public class Event {
     }
 
     public void changeStatus(EventStatus status) {
+        if (status == this.status) {
+            return;
+        }
+        if (this.status == EventStatus.CANCELLED
+                || this.status == EventStatus.COMPLETED) {
+            throw new IllegalArgumentException(
+                    "Não é possível alterar o status de um evento cancelado ou concluído."
+            );
+        }
+        if (this.status == EventStatus.DRAFT
+                && status == EventStatus.COMPLETED) {
+            throw new IllegalArgumentException(
+                    "Um evento em rascunho não pode ser concluído."
+            );
+        }
+        if (this.status == EventStatus.PUBLISHED
+                && status == EventStatus.DRAFT) {
+            throw new IllegalArgumentException(
+                    "Um evento publicado não pode voltar para rascunho."
+            );
+        }
         this.status = status;
     }
 

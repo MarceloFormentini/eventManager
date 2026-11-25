@@ -4,7 +4,7 @@ import br.com.formentini.eventManager.event.enums.EventStatus;
 import jakarta.validation.constraints.NotNull;
 
 public record EventStatusRequest (
-    @NotNull 
+    @NotNull(message = "O status é obrigatório")
     EventStatus status
 ){
 }

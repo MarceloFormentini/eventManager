@@ -16,6 +16,9 @@ public class TypeInstitution {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -25,6 +28,11 @@ public class TypeInstitution {
 
     public TypeInstitution(String name) {
         this.name = name;
+    }
+
+    public TypeInstitution(String name, String description) {
+        this.name = name;
+        this.description = description;
     }
 
     public Long getId() {
@@ -37,6 +45,14 @@ public class TypeInstitution {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public OffsetDateTime getCreatedAt() {

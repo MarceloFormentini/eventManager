@@ -21,6 +21,15 @@ public class Institution {
     @Column(nullable = false, length = 150)
     private String name;
 
+    @Column(length = 300)
+    private String address;
+
+    @Column(length = 50)
+    private String phone;
+
+    @Column(length = 254)
+    private String email;
+
     @CreationTimestamp
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -29,8 +38,21 @@ public class Institution {
     }
 
     public Institution(TypeInstitution typeInstitution, String name) {
+        this(typeInstitution, name, null, null, null);
+    }
+
+    public Institution(
+            TypeInstitution typeInstitution,
+            String name,
+            String address,
+            String phone,
+            String email
+    ) {
         this.name = name;
         this.typeInstitution = typeInstitution;
+        this.address = address;
+        this.phone = phone;
+        this.email = email;
     }
 
     public Long getId() {
@@ -51,6 +73,30 @@ public class Institution {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public OffsetDateTime getCreatedAt() {

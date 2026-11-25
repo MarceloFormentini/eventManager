@@ -29,7 +29,13 @@ public class InstitutionService {
     public InstitutionResponse create(InstitutionRequest request) {
         TypeInstitution type = findTypeInstitution(request.typeInstitutionId());
 
-        Institution institution = new Institution(type, request.name());
+        Institution institution = new Institution(
+                type,
+                request.name(),
+                request.address(),
+                request.phone(),
+                request.email()
+        );
 
         return toResponse(repository.save(institution));
     }
@@ -54,6 +60,9 @@ public class InstitutionService {
 
         institution.setName(request.name());
         institution.setTypeInstitution(type);
+        institution.setAddress(request.address());
+        institution.setPhone(request.phone());
+        institution.setEmail(request.email());
 
         return toResponse(repository.save(institution));
     }
@@ -94,6 +103,9 @@ public class InstitutionService {
                 institution.getName(),
                 institution.getTypeInstitution().getId(),
                 institution.getTypeInstitution().getName(),
+                institution.getAddress(),
+                institution.getPhone(),
+                institution.getEmail(),
                 institution.getCreatedAt()
         );
     }

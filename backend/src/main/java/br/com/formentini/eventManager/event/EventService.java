@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class EventService {
@@ -81,6 +83,11 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
+    public Page<EventResponse> findAll(Pageable pageable) {
+        return eventRepository.findAll(pageable).map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
     public EventResponse findById(Long id) {
         return toResponse(findEvent(id));
     }
@@ -89,7 +96,7 @@ public class EventService {
     public List<EventResponse> findByLocation(Long locationId) {
         if (!locationRepository.existsById(locationId)) {
             throw new ResourceNotFoundException(
-                    "Location not found with id: " + locationId
+                    "Local não encontrado com o ID: " + locationId
             );
         }
 
@@ -104,6 +111,12 @@ public class EventService {
         validateDates(request);
 
         Event event = findEvent(id);
+        if (event.getStatus() == EventStatus.CANCELLED
+                || event.getStatus() == EventStatus.COMPLETED) {
+            throw new IllegalArgumentException(
+                    "Eventos cancelados ou concluídos não podem ser editados."
+            );
+        }
         Location location = findLocation(request.locationId());
         validateNoScheduleConflict(request, id);
 
@@ -114,7 +127,6 @@ public class EventService {
                 request.startDate(),
                 request.endDate()
         );
-
         return toResponse(eventRepository.save(event));
     }
 
@@ -136,21 +148,21 @@ public class EventService {
     private Event findEvent(Long id) {
         return eventRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Event not found with id: " + id
+                        "Evento não encontrado com o ID: " + id
                 ));
     }
 
     private Location findLocation(Long id) {
         return locationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Location not found with id: " + id
+                        "Local não encontrado com o ID: " + id
                 ));
     }
 
     private void validateDates(EventRequest request) {
         if (!request.endDate().isAfter(request.startDate())) {
             throw new IllegalArgumentException(
-                    "Event end date/time must be after start date/time"
+                    "A data e hora de término devem ser posteriores às de início."
             );
         }
     }
@@ -176,8 +188,7 @@ public class EventService {
 
         if (hasConflict) {
             throw new EventScheduleConflictException(
-                    "Another event is already scheduled at this location "
-                            + "during the requested time"
+                    "Já existe outro evento agendado neste local durante o período informado."
             );
         }
     }

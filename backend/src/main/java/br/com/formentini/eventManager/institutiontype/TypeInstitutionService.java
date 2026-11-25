@@ -22,7 +22,10 @@ public class TypeInstitutionService {
     @Transactional
     public TypeInstitutionResponse create(TypeInstitutionRequest request) {
 
-        TypeInstitution entity = new TypeInstitution(request.name());
+        TypeInstitution entity = new TypeInstitution(
+                request.name(),
+                request.description()
+        );
 
         TypeInstitution saved = repository.save(entity);
 
@@ -54,6 +57,7 @@ public class TypeInstitutionService {
         TypeInstitution entity = findEntityById(id);
 
         entity.setName(request.name());
+        entity.setDescription(request.description());
 
         TypeInstitution updated = repository.save(entity);
 
@@ -81,6 +85,7 @@ public class TypeInstitutionService {
         return new TypeInstitutionResponse(
                 entity.getId(),
                 entity.getName(),
+                entity.getDescription(),
                 entity.getCreatedAt()
         );
     }

@@ -4,6 +4,7 @@ package br.com.formentini.eventManager.location.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record LocationRequest(
@@ -14,7 +15,15 @@ public record LocationRequest(
 
         @NotNull(message = "A instituição é obrigatória")
         @Positive(message = "O ID da instituição deve ser positivo")
-        Long institutionId
+        Long institutionId,
 
+        @PositiveOrZero(message = "A capacidade não pode ser negativa")
+        Integer capacity,
+
+        @Size(max = 2000, message = "A descrição deve ter no máximo 2000 caracteres")
+        String description
 ) {
+    public LocationRequest(String name, Long institutionId) {
+        this(name, institutionId, 0, null);
+    }
 }
