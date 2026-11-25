@@ -221,14 +221,14 @@ class EventRepositoryTest {
         Event current = persistEvent(
                 location, "Evento atual", start, end, EventStatus.DRAFT);
         persistEvent(location, "Outro evento",
-                start.plusHours(1), end.plusHours(1), EventStatus.PUBLISHED);
+                end, end.plusHours(1), EventStatus.PUBLISHED);
 
         boolean conflict =
                 eventRepository
                         .existsByLocationIdAndStartDateLessThanAndEndDateGreaterThanAndIdNot(
                                 location.getId(),
                                 end.plusHours(2),
-                                start.plusMinutes(30),
+                                start.plusHours(8).plusMinutes(30),
                                 current.getId());
 
         assertTrue(conflict);

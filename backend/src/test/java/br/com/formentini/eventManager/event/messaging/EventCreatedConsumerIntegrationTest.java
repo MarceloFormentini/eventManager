@@ -18,10 +18,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.OffsetDateTime;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,16 +43,28 @@ import static org.mockito.Mockito.*;
 @Testcontainers
 class EventCreatedConsumerIntegrationTest {
 
+    private static final AtomicLong eventIds = new AtomicLong(100L);
+
     @Container
     static final RabbitMQContainer rabbitMQ =
             new RabbitMQContainer("rabbitmq:4-management");
 
+    @Container
+    static final PostgreSQLContainer<?> postgres =
+            new PostgreSQLContainer<>("postgres:17")
+                    .withDatabaseName("event_manager_test")
+                    .withUsername("test")
+                    .withPassword("test");
+
     @DynamicPropertySource
-    static void configureRabbitMQ(DynamicPropertyRegistry registry) {
+    static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.rabbitmq.host", rabbitMQ::getHost);
         registry.add("spring.rabbitmq.port", rabbitMQ::getAmqpPort);
         registry.add("spring.rabbitmq.username", rabbitMQ::getAdminUsername);
         registry.add("spring.rabbitmq.password", rabbitMQ::getAdminPassword);
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
     }
 
     private final RabbitTemplate rabbitTemplate;
@@ -166,7 +180,7 @@ class EventCreatedConsumerIntegrationTest {
 
     private EventCreated createEvent() {
         return new EventCreated(
-                100L,
+                eventIds.getAndIncrement(),
                 "Evento de teste",
                 "Descrição do evento",
                 OffsetDateTime.now(),
