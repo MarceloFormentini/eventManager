@@ -3,14 +3,14 @@ package br.com.formentini.eventManager.location;
 
 import br.com.formentini.eventManager.location.dto.LocationRequest;
 import br.com.formentini.eventManager.location.dto.LocationResponse;
+import br.com.formentini.eventManager.shared.pagination.PageResponse;
+import br.com.formentini.eventManager.shared.pagination.PageableFactory;
 
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/locations")
@@ -34,8 +34,17 @@ public class LocationController {
     }
 
     @GetMapping
-    public ResponseEntity<List<LocationResponse>> findAll() {
-        return ResponseEntity.ok(locationService.findAll());
+    public ResponseEntity<PageResponse<LocationResponse>> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        return ResponseEntity.ok(PageResponse.from(locationService.findAll(
+                PageableFactory.create(
+                        page, size, sort, direction, "id", "createdAt", "name", "capacity"
+                )
+        )));
     }
 
     @GetMapping("/{id}")
@@ -46,12 +55,22 @@ public class LocationController {
     }
 
     @GetMapping("/institution/{institutionId}")
-    public ResponseEntity<List<LocationResponse>> findByInstitution(
-            @PathVariable Long institutionId
+    public ResponseEntity<PageResponse<LocationResponse>> findByInstitution(
+            @PathVariable Long institutionId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction
     ) {
-        return ResponseEntity.ok(
-                locationService.findByInstitution(institutionId)
-        );
+        return ResponseEntity.ok(PageResponse.from(
+                locationService.findByInstitution(
+                        institutionId,
+                        PageableFactory.create(
+                                page, size, sort, direction,
+                                "id", "createdAt", "name", "capacity"
+                        )
+                )
+        ));
     }
 
     @PutMapping("/{id}")

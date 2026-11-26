@@ -33,6 +33,34 @@ export async function apiRequest<T>(
   return response.json() as Promise<T>
 }
 
+type ApiPage<T> = {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+export async function apiRequestAll<T>(path: string): Promise<T[]> {
+  const items: T[] = []
+  let page = 0
+  let totalPages = 1
+
+  while (page < totalPages) {
+    const separator = path.includes("?") ? "&" : "?"
+    const result = await apiRequest<ApiPage<T>>(
+      `${path}${separator}page=${page}&size=100`,
+    )
+    items.push(...result.content)
+    totalPages = result.totalPages
+    page += 1
+  }
+
+  return items
+}
+
 function getStatusMessage(status: number): string {
   switch (status) {
     case 400:

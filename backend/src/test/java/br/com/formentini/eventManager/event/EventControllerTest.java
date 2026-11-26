@@ -13,6 +13,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -116,11 +119,54 @@ class EventControllerTest {
 
     @Test
     void shouldListAllEvents() throws Exception {
-        when(eventService.findAll()).thenReturn(List.of(response()));
+        when(eventService.findAll(any()))
+                .thenReturn(new PageImpl<>(
+                        List.of(response()),
+                        PageRequest.of(0, 20, Sort.by("createdAt").descending()),
+                        1
+                ));
 
         mockMvc.perform(get("/api/v1/events"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].title").value("Conferência de Tecnologia"));
+                .andExpect(jsonPath("$.content[0].title").value("Conferência de Tecnologia"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.last").value(true));
+    }
+
+    @Test
+    void shouldRejectInvalidPaginationAndSortingParameters() throws Exception {
+        mockMvc.perform(get("/api/v1/events")
+                        .queryParam("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(
+                        "A página deve ser maior ou igual a zero."
+                ));
+
+        mockMvc.perform(get("/api/v1/events")
+                        .queryParam("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(
+                        "O tamanho da página deve estar entre 1 e 100."
+                ));
+
+        mockMvc.perform(get("/api/v1/events")
+                        .queryParam("sort", "unknown"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/v1/events")
+                        .queryParam("direction", "sideways"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/v1/events")
+                        .queryParam("page", "invalid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value(
+                        "O parâmetro 'page' possui um formato inválido."
+                ));
     }
 
     @Test
@@ -135,11 +181,16 @@ class EventControllerTest {
 
     @Test
     void shouldFindEventsByLocation() throws Exception {
-        when(eventService.findByLocation(10L)).thenReturn(List.of(response()));
+        when(eventService.findByLocation(eq(10L), any()))
+                .thenReturn(new PageImpl<>(
+                        List.of(response()),
+                        PageRequest.of(0, 20, Sort.by("createdAt").descending()),
+                        1
+                ));
 
         mockMvc.perform(get("/api/v1/events/location/10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].locationId").value(10));
+                .andExpect(jsonPath("$.content[0].locationId").value(10));
     }
 
     @Test

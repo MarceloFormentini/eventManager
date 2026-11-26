@@ -14,6 +14,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 
@@ -96,13 +98,17 @@ class LocationControllerTest {
 
     @Test
     void shouldFindAllLocations() throws Exception {
-        when(locationService.findAll())
-                .thenReturn(List.of(response()));
+        when(locationService.findAll(any()))
+                .thenReturn(new PageImpl<>(
+                        List.of(response()),
+                        PageRequest.of(0, 20),
+                        1
+                ));
 
         mockMvc.perform(get("/api/v1/locations"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].name")
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].name")
                         .value("Auditório Principal"));
     }
 
@@ -129,12 +135,16 @@ class LocationControllerTest {
 
     @Test
     void shouldFindLocationsByInstitution() throws Exception {
-        when(locationService.findByInstitution(1L))
-                .thenReturn(List.of(response()));
+        when(locationService.findByInstitution(eq(1L), any()))
+                .thenReturn(new PageImpl<>(
+                        List.of(response()),
+                        PageRequest.of(0, 20),
+                        1
+                ));
 
         mockMvc.perform(get("/api/v1/locations/institution/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1));
+                .andExpect(jsonPath("$.content.length()").value(1));
     }
 
     @Test

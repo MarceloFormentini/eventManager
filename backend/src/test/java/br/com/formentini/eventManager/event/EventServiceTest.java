@@ -11,6 +11,8 @@ import br.com.formentini.eventManager.outbox.OutboxService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
@@ -269,6 +271,39 @@ class EventServiceTest {
         verify(eventRepository)
                 .existsByLocationIdAndStartDateLessThanAndEndDateGreaterThanAndIdNot(
                         10L, end, start, 1L);
+    }
+
+    @Test
+    void shouldAllowEditingPublishedEvent() {
+        Event event = new Event(location, "Título antigo", null,
+                start, end, EventStatus.PUBLISHED);
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+        when(locationRepository.findById(10L)).thenReturn(Optional.of(location));
+        when(eventRepository
+                .existsByLocationIdAndStartDateLessThanAndEndDateGreaterThanAndIdNot(
+                        10L, end, start, 1L)).thenReturn(false);
+        when(eventRepository.save(any(Event.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        EventResponse response = eventService.update(1L, validRequest);
+
+        assertEquals(EventStatus.PUBLISHED, response.status());
+        assertEquals(validRequest.title(), response.title());
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = EventStatus.class, names = {"CANCELLED", "COMPLETED"})
+    void shouldRejectEditingCancelledOrCompletedEvent(EventStatus status) {
+        Event event = new Event(location, "Evento", null,
+                start, end, status);
+        when(eventRepository.findById(1L)).thenReturn(Optional.of(event));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> eventService.update(1L, validRequest)
+        );
+        verify(locationRepository, never()).findById(anyLong());
+        verify(eventRepository, never()).save(any());
     }
 
     @Test

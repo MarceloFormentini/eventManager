@@ -9,7 +9,7 @@ import InstituicaoForm from "./components/instituicao-form"
 import LocalForm from "./components/local-form"
 import EventoForm from "./components/evento-form"
 import Header from "./components/header"
-import { apiRequest } from "@/lib/api"
+import { apiRequestAll } from "@/lib/api"
 
 export interface TipoInstituicao {
   id: string
@@ -93,10 +93,10 @@ export default function TodoSystem() {
   async function refreshData() {
     try {
       const [types, institutions, locations, events] = await Promise.all([
-        apiRequest<ApiType[]>("/institution-types"),
-        apiRequest<ApiInstitution[]>("/institutions"),
-        apiRequest<ApiLocation[]>("/locations"),
-        apiRequest<ApiEvent[]>("/events"),
+        apiRequestAll<ApiType>("/institution-types"),
+        apiRequestAll<ApiInstitution>("/institutions"),
+        apiRequestAll<ApiLocation>("/locations"),
+        apiRequestAll<ApiEvent>("/events"),
       ])
       setTiposInstituicao(types.map((item) => ({
         id: String(item.id),

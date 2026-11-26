@@ -9,6 +9,8 @@ import br.com.formentini.eventManager.shared.exception.ResourceNotFoundException
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -49,6 +51,11 @@ public class InstitutionService {
     }
 
     @Transactional(readOnly = true)
+    public Page<InstitutionResponse> findAll(Pageable pageable) {
+        return repository.findAll(pageable).map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
     public InstitutionResponse findById(Long id) {
         return toResponse(findEntityById(id));
     }
@@ -81,6 +88,17 @@ public class InstitutionService {
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InstitutionResponse> findByTypeInstitution(
+            Long typeInstitutionId,
+            Pageable pageable
+    ) {
+        findTypeInstitution(typeInstitutionId);
+
+        return repository.findByTypeInstitutionId(typeInstitutionId, pageable)
+                .map(this::toResponse);
     }
 
     private Institution findEntityById(Long id) {

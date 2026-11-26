@@ -3,13 +3,11 @@ package br.com.formentini.eventManager.event;
 import br.com.formentini.eventManager.event.dto.EventRequest;
 import br.com.formentini.eventManager.event.dto.EventResponse;
 import br.com.formentini.eventManager.event.dto.EventStatusRequest;
+import br.com.formentini.eventManager.shared.pagination.PageResponse;
+import br.com.formentini.eventManager.shared.pagination.PageableFactory;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/events")
@@ -28,23 +26,21 @@ public class EventController {
     }
 
     @GetMapping
-    public Object findAll(
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size,
+    public PageResponse<EventResponse> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "desc") String direction
     ) {
-        if (page == null && size == null) {
-            return eventService.findAll();
-        }
-
-        int pageNumber = page == null ? 0 : Math.max(page, 0);
-        int pageSize = size == null ? 20 : Math.min(Math.max(size, 1), 100);
-        Sort sortOrder = "asc".equalsIgnoreCase(direction)
-                ? Sort.by(sort).ascending()
-                : Sort.by(sort).descending();
-
-        return eventService.findAll(PageRequest.of(pageNumber, pageSize, sortOrder));
+        return PageResponse.from(eventService.findAll(
+                PageableFactory.create(
+                        page,
+                        size,
+                        sort,
+                        direction,
+                        "id", "createdAt", "title", "startDate", "endDate", "status"
+                )
+        ));
     }
 
     @GetMapping("/{id}")
@@ -53,10 +49,23 @@ public class EventController {
     }
 
     @GetMapping("/location/{locationId}")
-    public List<EventResponse> findByLocation(
-            @PathVariable Long locationId
+    public PageResponse<EventResponse> findByLocation(
+            @PathVariable Long locationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction
     ) {
-        return eventService.findByLocation(locationId);
+        return PageResponse.from(eventService.findByLocation(
+                locationId,
+                PageableFactory.create(
+                        page,
+                        size,
+                        sort,
+                        direction,
+                        "id", "createdAt", "title", "startDate", "endDate", "status"
+                )
+        ));
     }
 
     @PutMapping("/{id}")

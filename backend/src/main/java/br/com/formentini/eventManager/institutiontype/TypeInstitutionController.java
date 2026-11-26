@@ -3,14 +3,14 @@ package br.com.formentini.eventManager.institutiontype;
 
 import br.com.formentini.eventManager.institutiontype.dto.TypeInstitutionRequest;
 import br.com.formentini.eventManager.institutiontype.dto.TypeInstitutionResponse;
+import br.com.formentini.eventManager.shared.pagination.PageResponse;
+import br.com.formentini.eventManager.shared.pagination.PageableFactory;
 
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/institution-types")
@@ -32,9 +32,17 @@ public class TypeInstitutionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<TypeInstitutionResponse>> findAll() {
-
-        return ResponseEntity.ok(service.findAll());
+    public ResponseEntity<PageResponse<TypeInstitutionResponse>> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        return ResponseEntity.ok(PageResponse.from(service.findAll(
+                PageableFactory.create(
+                        page, size, sort, direction, "id", "createdAt", "name"
+                )
+        )));
     }
 
     @GetMapping("/{id}")

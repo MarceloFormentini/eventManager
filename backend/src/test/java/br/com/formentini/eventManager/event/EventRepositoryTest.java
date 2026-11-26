@@ -201,6 +201,21 @@ class EventRepositoryTest {
     }
 
     @Test
+    void shouldAllowScheduleReuseAfterCancellationOrCompletion() {
+        persistEvent(location, "Evento cancelado", start, end, EventStatus.CANCELLED);
+        persistEvent(location, "Evento concluído", start, end, EventStatus.COMPLETED);
+
+        boolean conflict =
+                eventRepository
+                        .existsByLocationIdAndStartDateLessThanAndEndDateGreaterThan(
+                                location.getId(),
+                                end,
+                                start);
+
+        assertFalse(conflict);
+    }
+
+    @Test
     void shouldExcludeCurrentEventWhenCheckingConflictDuringUpdate() {
         Event event = persistEvent(
                 location, "Evento atual", start, end, EventStatus.DRAFT);

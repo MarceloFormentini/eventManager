@@ -33,12 +33,30 @@ no diretório `backend` e `npm ci && npm run dev` em `frontend`.
 
 Endpoints principais:
 
-- `GET /api/v1/events`
-- `GET /api/v1/events?page=0&size=20&sort=createdAt&direction=desc`
-- `POST /api/v1/events`
-- `PUT /api/v1/events/{id}`
-- `PATCH /api/v1/events/{id}/status`
-- `DELETE /api/v1/events/{id}`
+| Recurso | Listagem paginada | Filtro paginado | Demais operações |
+| --- | --- | --- | --- |
+| Eventos | `GET /api/v1/events` | `GET /api/v1/events/location/{locationId}` | `GET /api/v1/events/{id}`, `POST /api/v1/events`, `PUT /api/v1/events/{id}`, `PATCH /api/v1/events/{id}/status`, `DELETE /api/v1/events/{id}` |
+| Instituições | `GET /api/v1/institutions` | `GET /api/v1/institutions/type/{typeInstitutionId}` | `GET /api/v1/institutions/{id}`, `POST /api/v1/institutions`, `PUT /api/v1/institutions/{id}`, `DELETE /api/v1/institutions/{id}` |
+| Locais | `GET /api/v1/locations` | `GET /api/v1/locations/institution/{institutionId}` | `GET /api/v1/locations/{id}`, `POST /api/v1/locations`, `PUT /api/v1/locations/{id}`, `DELETE /api/v1/locations/{id}` |
+| Tipos de instituição | `GET /api/v1/institution-types` | — | `GET /api/v1/institution-types/{id}`, `POST /api/v1/institution-types`, `PUT /api/v1/institution-types/{id}`, `DELETE /api/v1/institution-types/{id}` |
+
+Todas as listagens aceitam `page=0`, `size=20`, `sort` e `direction` (`asc` ou
+`desc`). Tamanho máximo: 100. Campos de ordenação: eventos (`id`, `createdAt`,
+`title`, `startDate`, `endDate`, `status`); instituições (`id`, `createdAt`,
+`name`); locais (`id`, `createdAt`, `name`, `capacity`); tipos (`id`,
+`createdAt`, `name`). Os campos padrão são `createdAt` e direção `desc`.
+
+As listagens retornam `content`, `page`, `size`, `totalElements`, `totalPages`,
+`first` e `last`. A página padrão é `0` e o tamanho padrão é `20`. A API rejeita
+parâmetros de paginação e ordenação inválidos com HTTP `400`.
+
+Eventos em `DRAFT` e `PUBLISHED` ocupam o horário. Eventos `CANCELLED` e
+`COMPLETED` liberam o horário. Transições permitidas: `DRAFT` para `PUBLISHED`
+ou `CANCELLED`; `PUBLISHED` para `CANCELLED` ou `COMPLETED`. Eventos em estado
+terminal (`CANCELLED` ou `COMPLETED`) não podem ser alterados; eventos publicados
+podem ter seus dados editados, mas não podem voltar a rascunho. Erros de validação
+retornam `400`, conflitos de agenda e integridade retornam `409`, recursos
+inexistentes retornam `404`, e exclusões bem-sucedidas retornam `204`.
 
 Actuator: `http://localhost:8080/actuator/health`
 

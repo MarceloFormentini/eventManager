@@ -106,6 +106,18 @@ public class EventService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public Page<EventResponse> findByLocation(Long locationId, Pageable pageable) {
+        if (!locationRepository.existsById(locationId)) {
+            throw new ResourceNotFoundException(
+                    "Local não encontrado com o ID: " + locationId
+            );
+        }
+
+        return eventRepository.findByLocationId(locationId, pageable)
+                .map(this::toResponse);
+    }
+
     @Transactional
     public EventResponse update(Long id, EventRequest request) {
         validateDates(request);

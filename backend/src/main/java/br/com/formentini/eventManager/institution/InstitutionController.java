@@ -3,13 +3,13 @@ package br.com.formentini.eventManager.institution;
 
 import br.com.formentini.eventManager.institution.dto.InstitutionRequest;
 import br.com.formentini.eventManager.institution.dto.InstitutionResponse;
+import br.com.formentini.eventManager.shared.pagination.PageResponse;
+import br.com.formentini.eventManager.shared.pagination.PageableFactory;
 
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/institutions")
@@ -29,8 +29,15 @@ public class InstitutionController {
     }
 
     @GetMapping
-    public List<InstitutionResponse> findAll() {
-        return service.findAll();
+    public PageResponse<InstitutionResponse> findAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        return PageResponse.from(service.findAll(PageableFactory.create(
+                page, size, sort, direction, "id", "createdAt", "name"
+        )));
     }
 
     @GetMapping("/{id}")
@@ -39,9 +46,19 @@ public class InstitutionController {
     }
 
     @GetMapping("/type/{typeInstitutionId}")
-    public List<InstitutionResponse> findByTypeInstitution(
-            @PathVariable Long typeInstitutionId) {
-        return service.findByTypeInstitution(typeInstitutionId);
+    public PageResponse<InstitutionResponse> findByTypeInstitution(
+            @PathVariable Long typeInstitutionId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String direction
+    ) {
+        return PageResponse.from(service.findByTypeInstitution(
+                typeInstitutionId,
+                PageableFactory.create(
+                        page, size, sort, direction, "id", "createdAt", "name"
+                )
+        ));
     }
 
     @PutMapping("/{id}")

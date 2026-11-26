@@ -11,6 +11,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -104,18 +106,19 @@ class InstitutionControllerTest {
 
     @Test
     void shouldReturnAllInstitutions() throws Exception {
-        when(service.findAll()).thenReturn(List.of(
+        when(service.findAll(any())).thenReturn(new PageImpl<>(List.of(
                 createResponse(1L, "Universidade Estadual", 1L, "Universidade"),
                 createResponse(2L, "Escola Municipal", 2L, "Escola")
-        ));
+        ), PageRequest.of(0, 20), 2));
 
         mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].name").value("Universidade Estadual"))
-                .andExpect(jsonPath("$[1].name").value("Escola Municipal"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].name").value("Universidade Estadual"))
+                .andExpect(jsonPath("$.content[1].name").value("Escola Municipal"))
+                .andExpect(jsonPath("$.totalElements").value(2));
 
-        verify(service).findAll();
+        verify(service).findAll(any());
     }
 
     @Test
@@ -148,24 +151,24 @@ class InstitutionControllerTest {
 
     @Test
     void shouldFindInstitutionsByType() throws Exception {
-        when(service.findByTypeInstitution(1L))
-                .thenReturn(List.of(
+        when(service.findByTypeInstitution(eq(1L), any()))
+                .thenReturn(new PageImpl<>(List.of(
                         createResponse(
                                 1L, "Universidade Estadual", 1L, "Universidade"
                         )
-                ));
+                ), PageRequest.of(0, 20), 1));
 
         mockMvc.perform(get(BASE_URL + "/type/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].typeInstitutionId").value(1));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].typeInstitutionId").value(1));
 
-        verify(service).findByTypeInstitution(1L);
+        verify(service).findByTypeInstitution(eq(1L), any());
     }
 
     @Test
     void shouldReturnNotFoundWhenTypeDoesNotExist() throws Exception {
-        when(service.findByTypeInstitution(99L))
+        when(service.findByTypeInstitution(eq(99L), any()))
                 .thenThrow(new ResourceNotFoundException(
                         "Tipo de instituição não encontrado: 99"
                 ));
@@ -173,7 +176,7 @@ class InstitutionControllerTest {
         mockMvc.perform(get(BASE_URL + "/type/99"))
                 .andExpect(status().isNotFound());
 
-        verify(service).findByTypeInstitution(99L);
+        verify(service).findByTypeInstitution(eq(99L), any());
     }
 
     @Test

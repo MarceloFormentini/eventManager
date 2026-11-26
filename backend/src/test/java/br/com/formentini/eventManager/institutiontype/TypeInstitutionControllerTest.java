@@ -13,6 +13,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -79,18 +81,19 @@ class TypeInstitutionControllerTest {
 
     @Test
     void shouldReturnAllTypeInstitutions() throws Exception {
-        when(service.findAll()).thenReturn(List.of(
+        when(service.findAll(any())).thenReturn(new PageImpl<>(List.of(
                 createResponse(1L, "Universidade"),
                 createResponse(2L, "Escola")
-        ));
+        ), PageRequest.of(0, 20), 2));
 
         mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].name").value("Universidade"))
-                .andExpect(jsonPath("$[1].name").value("Escola"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].name").value("Universidade"))
+                .andExpect(jsonPath("$.content[1].name").value("Escola"))
+                .andExpect(jsonPath("$.totalElements").value(2));
 
-        verify(service).findAll();
+        verify(service).findAll(any());
     }
 
     @Test
@@ -163,4 +166,3 @@ class TypeInstitutionControllerTest {
         verify(service).delete(99L);
     }
 }
-
