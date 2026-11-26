@@ -17,6 +17,8 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const headers = new Headers()
   const contentType = request.headers.get("content-type")
   if (contentType) headers.set("content-type", contentType)
+  const requestId = request.headers.get("x-request-id")
+  if (requestId) headers.set("x-request-id", requestId)
 
   const body =
     request.method === "GET" || request.method === "HEAD"
@@ -32,12 +34,16 @@ async function proxy(request: NextRequest, context: RouteContext) {
 
   const responseBody =
     response.status === 204 ? null : await response.arrayBuffer()
+  const responseHeaders = new Headers({
+    "content-type":
+      response.headers.get("content-type") ?? "application/json",
+  })
+  const responseRequestId = response.headers.get("x-request-id")
+  if (responseRequestId) responseHeaders.set("x-request-id", responseRequestId)
+
   return new NextResponse(responseBody, {
     status: response.status,
-    headers: {
-      "content-type":
-        response.headers.get("content-type") ?? "application/json",
-    },
+    headers: responseHeaders,
   })
 }
 
