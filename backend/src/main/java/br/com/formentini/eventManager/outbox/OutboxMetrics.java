@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.AmqpException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.stereotype.Component;
@@ -128,15 +129,23 @@ public class OutboxMetrics {
             log.error("Cannot read RabbitMQ DLQ depth; RabbitAdmin is unavailable");
             return -1;
         }
-        var queueInfo = admin.getQueueInfo(RabbitMQConfig.EVENT_CREATED_DLQ);
-        if (queueInfo == null) {
+        try {
+            var queueInfo = admin.getQueueInfo(RabbitMQConfig.EVENT_CREATED_DLQ);
+            if (queueInfo == null) {
+                log.error(
+                        "Cannot read RabbitMQ DLQ depth; queue is missing: {}",
+                        RabbitMQConfig.EVENT_CREATED_DLQ
+                );
+                return -1;
+            }
+            return queueInfo.getMessageCount();
+        } catch (AmqpException exception) {
             log.error(
-                    "Cannot read RabbitMQ DLQ depth; queue is missing: {}",
-                    RabbitMQConfig.EVENT_CREATED_DLQ
+                    "Cannot read RabbitMQ DLQ depth; RabbitMQ request failed",
+                    exception
             );
             return -1;
         }
-        return queueInfo.getMessageCount();
     }
 
     private enum ConsumerOutcome {

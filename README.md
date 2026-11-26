@@ -93,12 +93,13 @@ As métricas Prometheus ficam em `/actuator/prometheus` e incluem:
 | `event_outbox_oldest_pending_seconds` | Idade da mensagem pendente mais antiga |
 | `event_outbox_publish_total{result=...}` | Publicações concluídas ou com falha |
 | `event_consumer_messages_total{result=...}` | Mensagens processadas, duplicadas ou com falha |
-| `event_rabbitmq_dlq_messages` | Mensagens aguardando na DLQ (`-1` indica fila ausente; gera alerta crítico) |
+| `event_rabbitmq_dlq_messages` | Mensagens aguardando na DLQ (`-1` indica fila ausente ou RabbitMQ indisponível; gera alerta crítico) |
 
 As regras versionadas em `monitoring/alert-rules.yml` alertam sobre backlog
 crescente, eventos parados ou falhos, repetição de falhas de publicação,
-falhas de consumo e DLQ não vazia. O Prometheus avalia essas regras; configure
-um Alertmanager e seus receptores para encaminhar notificações à equipe.
+falhas de consumo, DLQ não vazia e indisponibilidade da métrica da DLQ. O
+Prometheus avalia essas regras; configure um Alertmanager e seus receptores
+para encaminhar notificações à equipe.
 
 Requisições recebem `X-Request-Id`; IDs recebidos são aceitos somente quando
 seguem o formato seguro definido pelo backend, caso contrário é gerado um UUID.
@@ -115,6 +116,9 @@ cd backend
 ```
 
 Os testes de integração usam Testcontainers para PostgreSQL e RabbitMQ.
+Também verificam o endpoint Prometheus, a persistência do `X-Request-Id` no
+Outbox, os resultados de consumo e a resposta da métrica da DLQ quando o
+RabbitMQ ou a fila não estão disponíveis.
 
 ## Arquitetura do Outbox
 

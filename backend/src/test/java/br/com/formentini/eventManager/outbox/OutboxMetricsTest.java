@@ -4,6 +4,7 @@ import br.com.formentini.eventManager.config.RabbitMQConfig;
 import br.com.formentini.eventManager.outbox.enums.OutboxStatus;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.amqp.AmqpException;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.QueueInformation;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
@@ -95,6 +96,37 @@ class OutboxMetricsTest {
         when(rabbitAdminProvider.getIfAvailable()).thenReturn(rabbitAdmin);
         when(rabbitAdmin.getQueueInfo(RabbitMQConfig.EVENT_CREATED_DLQ))
                 .thenReturn(null);
+        new OutboxMetrics(registry, repository, rabbitAdminProvider);
+
+        assertEquals(
+                -1,
+                registry.get("event.rabbitmq.dlq.messages").gauge().value()
+        );
+    }
+
+    @Test
+    void shouldMarkDlqMetricUnavailableWhenRabbitAdminIsMissing() {
+        var registry = new SimpleMeterRegistry();
+        OutboxEventRepository repository = mock(OutboxEventRepository.class);
+        ObjectProvider<RabbitAdmin> rabbitAdminProvider = mock(ObjectProvider.class);
+        when(rabbitAdminProvider.getIfAvailable()).thenReturn(null);
+        new OutboxMetrics(registry, repository, rabbitAdminProvider);
+
+        assertEquals(
+                -1,
+                registry.get("event.rabbitmq.dlq.messages").gauge().value()
+        );
+    }
+
+    @Test
+    void shouldMarkDlqMetricUnavailableWhenRabbitMqCannotBeReached() {
+        var registry = new SimpleMeterRegistry();
+        OutboxEventRepository repository = mock(OutboxEventRepository.class);
+        RabbitAdmin rabbitAdmin = mock(RabbitAdmin.class);
+        ObjectProvider<RabbitAdmin> rabbitAdminProvider = mock(ObjectProvider.class);
+        when(rabbitAdminProvider.getIfAvailable()).thenReturn(rabbitAdmin);
+        when(rabbitAdmin.getQueueInfo(RabbitMQConfig.EVENT_CREATED_DLQ))
+                .thenThrow(new AmqpException("RabbitMQ unavailable"));
         new OutboxMetrics(registry, repository, rabbitAdminProvider);
 
         assertEquals(

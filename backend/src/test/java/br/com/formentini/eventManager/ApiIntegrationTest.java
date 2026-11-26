@@ -3,6 +3,7 @@ package br.com.formentini.eventManager;
 import br.com.formentini.eventManager.event.Event;
 import br.com.formentini.eventManager.event.EventRepository;
 import br.com.formentini.eventManager.event.enums.EventStatus;
+import br.com.formentini.eventManager.config.RequestCorrelationFilter;
 import br.com.formentini.eventManager.institution.Institution;
 import br.com.formentini.eventManager.institution.InstitutionRepository;
 import br.com.formentini.eventManager.institutiontype.TypeInstitution;
@@ -30,8 +31,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = {
         "outbox.dispatcher.fixed-delay-ms=3600000",
@@ -125,6 +129,48 @@ class ApiIntegrationTest {
         assertPage("/api/v1/events/location/" + catalog.location().getId()
                         + "?page=0&size=1&sort=title&direction=asc",
                 "title", "Evento A", 2);
+    }
+
+    @Test
+    void shouldPersistRequestCorrelationAndExposePrometheusMetrics()
+            throws Exception {
+        Catalog catalog = createCatalog();
+        String requestId = "operations-trace-42";
+
+        mockMvc.perform(post("/api/v1/events")
+                        .header(RequestCorrelationFilter.REQUEST_ID_HEADER, requestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(eventRequest(
+                                catalog.location().getId(),
+                                "Evento com correlação",
+                                startAt(9),
+                                startAt(10),
+                                "PUBLISHED"
+                        )))
+                .andExpect(status().isCreated())
+                .andExpect(header().string(
+                        RequestCorrelationFilter.REQUEST_ID_HEADER,
+                        requestId
+                ));
+
+        assertEquals(
+                requestId,
+                jdbcTemplate.queryForObject(
+                        "select correlation_id from outbox_event",
+                        String.class
+                )
+        );
+
+        String metrics = mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        assertTrue(metrics.contains("event_outbox_pending"));
+        assertTrue(metrics.contains("event_outbox_publish_total"));
+        assertTrue(metrics.contains("event_consumer_messages_total"));
+        assertTrue(metrics.contains("event_rabbitmq_dlq_messages"));
     }
 
     @Test

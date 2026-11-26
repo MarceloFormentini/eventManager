@@ -2,6 +2,7 @@ package br.com.formentini.eventManager.config;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
+import jakarta.servlet.ServletException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
@@ -57,5 +58,39 @@ class RequestCorrelationFilterTest {
         assertTrue(requestId.matches(
                 "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
         ));
+    }
+
+    @Test
+    void shouldGenerateRequestIdWhenHeaderIsMissing() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, (servletRequest, servletResponse) -> {
+        });
+
+        assertNotNull(response.getHeader(RequestCorrelationFilter.REQUEST_ID_HEADER));
+        assertTrue(response.getHeader(RequestCorrelationFilter.REQUEST_ID_HEADER)
+                .matches("[0-9a-f-]{36}"));
+    }
+
+    @Test
+    void shouldClearRequestIdFromMdcWhenRequestProcessingFails() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader(RequestCorrelationFilter.REQUEST_ID_HEADER, "trace-failure");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        assertThrows(ServletException.class, () -> filter.doFilter(
+                request,
+                response,
+                (servletRequest, servletResponse) -> {
+                    assertEquals("trace-failure",
+                            MDC.get(RequestCorrelationFilter.REQUEST_ID_MDC_KEY));
+                    throw new ServletException("expected test failure");
+                }
+        ));
+
+        assertEquals("trace-failure",
+                response.getHeader(RequestCorrelationFilter.REQUEST_ID_HEADER));
+        assertNull(MDC.get(RequestCorrelationFilter.REQUEST_ID_MDC_KEY));
     }
 }

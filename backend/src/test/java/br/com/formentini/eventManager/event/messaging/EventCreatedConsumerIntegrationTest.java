@@ -119,6 +119,7 @@ class EventCreatedConsumerIntegrationTest {
         );
 
         verify(handler, timeout(5000).times(1)).handle(any(EventCreated.class));
+        verify(outboxMetrics).recordConsumerProcessed();
 
         assertEquals(
                 0,
@@ -146,6 +147,7 @@ class EventCreatedConsumerIntegrationTest {
         );
 
         awaitQueueToDrain(RabbitMQConfig.EVENT_CREATED_QUEUE);
+        verify(outboxMetrics, timeout(5000)).recordConsumerDuplicate();
         verify(handler, times(1)).handle(any(EventCreated.class));
         assertEquals(
                 0,
@@ -179,6 +181,25 @@ class EventCreatedConsumerIntegrationTest {
     }
 
     @Test
+    void shouldUseEventIdAsCorrelationIdWhenMessageHeaderIsMissing() {
+        EventCreated event = createEvent();
+        AtomicReference<String> observedCorrelationId = new AtomicReference<>();
+        doAnswer(invocation -> {
+            observedCorrelationId.set(MDC.get("correlationId"));
+            return null;
+        }).when(handler).handle(any(EventCreated.class));
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
+                event
+        );
+
+        verify(handler, timeout(5000).times(1)).handle(any(EventCreated.class));
+        assertEquals(Long.toString(event.eventId()), observedCorrelationId.get());
+    }
+
+    @Test
     void shouldRetryWhenProcessingFailsTemporarily() {
 
         EventCreated event = createEvent();
@@ -197,6 +218,8 @@ class EventCreatedConsumerIntegrationTest {
 
         verify(handler, timeout(10000).times(3))
                 .handle(any(EventCreated.class));
+        verify(outboxMetrics, times(2)).recordConsumerFailure();
+        verify(outboxMetrics).recordConsumerProcessed();
 
         assertEquals(
                 0,
@@ -223,6 +246,7 @@ class EventCreatedConsumerIntegrationTest {
 
         verify(handler, timeout(10000).times(3))
                 .handle(any(EventCreated.class));
+        verify(outboxMetrics, times(3)).recordConsumerFailure();
 
         Object received = rabbitTemplate.receiveAndConvert(
                 RabbitMQConfig.EVENT_CREATED_DLQ,

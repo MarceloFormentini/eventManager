@@ -51,27 +51,27 @@ public class EventCreatedConsumer {
 
     private void consumeCorrelated(EventCreated event) {
         log.info("Received EventCreated message. Event ID: {}", event.eventId());
-        JdbcTemplate jdbcTemplate =
-                jdbcTemplateProvider.getIfAvailable();
-
-        if (jdbcTemplate != null) {
-            int inserted = jdbcTemplate.update("""
-                    insert into processed_event (event_id)
-                    values (?)
-                    on conflict (event_id) do nothing
-                    """, event.eventId());
-
-            if (inserted == 0) {
-                log.info(
-                        "Duplicate EventCreated ignored. Event ID: {}",
-                        event.eventId()
-                );
-                metrics.recordConsumerDuplicate();
-                return;
-            }
-        }
-
         try {
+            JdbcTemplate jdbcTemplate =
+                    jdbcTemplateProvider.getIfAvailable();
+
+            if (jdbcTemplate != null) {
+                int inserted = jdbcTemplate.update("""
+                        insert into processed_event (event_id)
+                        values (?)
+                        on conflict (event_id) do nothing
+                        """, event.eventId());
+
+                if (inserted == 0) {
+                    log.info(
+                            "Duplicate EventCreated ignored. Event ID: {}",
+                            event.eventId()
+                    );
+                    metrics.recordConsumerDuplicate();
+                    return;
+                }
+            }
+
             handler.handle(event);
             metrics.recordConsumerProcessed();
             log.info(
