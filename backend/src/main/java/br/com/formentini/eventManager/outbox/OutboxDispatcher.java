@@ -6,6 +6,8 @@ import br.com.formentini.eventManager.outbox.enums.OutboxStatus;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +29,7 @@ public class OutboxDispatcher {
     private final OutboxEventRepository repository;
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final OutboxMetrics metrics;
     private final int batchSize;
     private final int maxAttempts;
     private final long confirmationTimeoutMs;
@@ -37,6 +40,7 @@ public class OutboxDispatcher {
             OutboxEventRepository repository,
             RabbitTemplate rabbitTemplate,
             ObjectMapper objectMapper,
+            OutboxMetrics metrics,
             @Value("${outbox.dispatcher.batch-size:100}") int batchSize,
             @Value("${outbox.dispatcher.max-attempts:5}") int maxAttempts,
             @Value("${outbox.dispatcher.confirmation-timeout-ms:10000}") long confirmationTimeoutMs,
@@ -46,6 +50,7 @@ public class OutboxDispatcher {
         this.repository = repository;
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
         this.batchSize = batchSize;
         this.maxAttempts = maxAttempts;
         this.confirmationTimeoutMs = confirmationTimeoutMs;
@@ -74,40 +79,57 @@ public class OutboxDispatcher {
         }
 
         CorrelationData correlationData =
-                new CorrelationData(event.getId().toString());
+                new CorrelationData(correlationId(event));
 
-        try {
-            Object payload = deserialize(event);
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.EVENT_EXCHANGE,
-                    RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
-                    payload,
-                    correlationData
-            );
-
-            CorrelationData.Confirm confirm =
-                    correlationData.getFuture().get(
-                            confirmationTimeoutMs,
-                            TimeUnit.MILLISECONDS
-                    );
-
-            if (!confirm.isAck()) {
-                throw new IllegalStateException(
-                        "RabbitMQ rejected message: " + confirm.getReason()
+        try (MDC.MDCCloseable ignored =
+                     MDC.putCloseable("correlationId", correlationId(event))) {
+            try {
+                Object payload = deserialize(event);
+                MessagePostProcessor correlationHeader = message -> {
+                    message.getMessageProperties()
+                            .setCorrelationId(correlationId(event));
+                    return message;
+                };
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.EVENT_EXCHANGE,
+                        RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
+                        payload,
+                        correlationHeader,
+                        correlationData
                 );
-            }
-            if (correlationData.getReturned() != null) {
-                throw new IllegalStateException("Message was returned by RabbitMQ");
-            }
 
-            event.markPublished(OffsetDateTime.now());
-            repository.save(event);
-            log.info("Outbox event published successfully: {}", event.getId());
-        } catch (Exception exception) {
-            scheduleRetry(event, exception);
-            repository.save(event);
-            log.error("Outbox event publication failed: {}", event.getId(), exception);
+                CorrelationData.Confirm confirm =
+                        correlationData.getFuture().get(
+                                confirmationTimeoutMs,
+                                TimeUnit.MILLISECONDS
+                        );
+
+                if (!confirm.isAck()) {
+                    throw new IllegalStateException(
+                            "RabbitMQ rejected message: " + confirm.getReason()
+                    );
+                }
+                if (correlationData.getReturned() != null) {
+                    throw new IllegalStateException("Message was returned by RabbitMQ");
+                }
+
+                event.markPublished(OffsetDateTime.now());
+                repository.save(event);
+                metrics.recordPublishSuccess();
+                log.info("Outbox event published successfully: {}", event.getId());
+            } catch (Exception exception) {
+                scheduleRetry(event, exception);
+                repository.save(event);
+                metrics.recordPublishFailure();
+                log.error("Outbox event publication failed: {}", event.getId(), exception);
+            }
         }
+    }
+
+    private String correlationId(OutboxEvent event) {
+        return event.getCorrelationId() == null
+                ? event.getId().toString()
+                : event.getCorrelationId();
     }
 
     private Object deserialize(OutboxEvent event) throws Exception {
@@ -124,8 +146,12 @@ public class OutboxDispatcher {
                 retryInitialDelayMs * (1L << Math.min(event.getAttempts(), 20)),
                 retryMaxDelayMs
         );
+        String error = exception.getMessage();
+        if (error == null || error.isBlank()) {
+            error = exception.getClass().getSimpleName();
+        }
         event.markFailed(
-                exception.getMessage(),
+                error,
                 OffsetDateTime.now().plusNanos(TimeUnit.MILLISECONDS.toNanos(delay)),
                 maxAttempts
         );

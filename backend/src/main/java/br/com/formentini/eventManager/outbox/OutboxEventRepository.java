@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import jakarta.persistence.LockModeType;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface OutboxEventRepository
@@ -25,4 +26,22 @@ public interface OutboxEventRepository
             @Param("now") OffsetDateTime now,
             Pageable pageable
     );
+
+    long countByStatus(
+            br.com.formentini.eventManager.outbox.enums.OutboxStatus status
+    );
+
+    @Query("""
+            select coalesce(sum(event.attempts), 0)
+            from OutboxEvent event
+            where event.status = br.com.formentini.eventManager.outbox.enums.OutboxStatus.PENDING
+            """)
+    long sumPendingAttempts();
+
+    @Query("""
+            select min(event.createdAt)
+            from OutboxEvent event
+            where event.status = br.com.formentini.eventManager.outbox.enums.OutboxStatus.PENDING
+            """)
+    Optional<OffsetDateTime> findOldestPendingCreatedAt();
 }

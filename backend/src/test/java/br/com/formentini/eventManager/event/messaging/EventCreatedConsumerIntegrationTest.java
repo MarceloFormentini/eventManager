@@ -2,10 +2,15 @@
 package br.com.formentini.eventManager.event.messaging;
 
 import br.com.formentini.eventManager.config.RabbitMQConfig;
+import br.com.formentini.eventManager.outbox.OutboxMetrics;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessageProperties;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -22,7 +27,9 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -73,6 +80,9 @@ class EventCreatedConsumerIntegrationTest {
     @MockitoBean
     private EventCreatedHandler handler;
 
+    @MockitoBean
+    private OutboxMetrics outboxMetrics;
+
     @Autowired
     EventCreatedConsumerIntegrationTest(
             RabbitTemplate rabbitTemplate,
@@ -116,6 +126,56 @@ class EventCreatedConsumerIntegrationTest {
                         RabbitMQConfig.EVENT_CREATED_DLQ
                 ).getMessageCount()
         );
+    }
+
+    @Test
+    void shouldIgnoreDuplicateDeliveriesAfterTheFirstSuccessfulProcessing() {
+        EventCreated event = createEvent();
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
+                event
+        );
+        verify(handler, timeout(5000).times(1)).handle(any(EventCreated.class));
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
+                event
+        );
+
+        awaitQueueToDrain(RabbitMQConfig.EVENT_CREATED_QUEUE);
+        verify(handler, times(1)).handle(any(EventCreated.class));
+        assertEquals(
+                0,
+                rabbitAdmin.getQueueInfo(RabbitMQConfig.EVENT_CREATED_DLQ)
+                        .getMessageCount()
+        );
+    }
+
+    @Test
+    void shouldExposePublisherCorrelationIdWhileHandlingMessage() {
+        EventCreated event = createEvent();
+        String correlationId = "request-correlation-01";
+        AtomicReference<String> observedCorrelationId = new AtomicReference<>();
+        doAnswer(invocation -> {
+            observedCorrelationId.set(MDC.get("correlationId"));
+            return null;
+        }).when(handler).handle(any(EventCreated.class));
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
+                event,
+                message -> {
+                    message.getMessageProperties().setCorrelationId(correlationId);
+                    return message;
+                }
+        );
+
+        verify(handler, timeout(5000).times(1)).handle(any(EventCreated.class));
+        assertEquals(correlationId, observedCorrelationId.get());
     }
 
     @Test
@@ -176,6 +236,48 @@ class EventCreatedConsumerIntegrationTest {
 
         assertEquals(event.eventId(), failedEvent.eventId());
         assertEquals(event.title(), failedEvent.title());
+    }
+
+    @Test
+    void shouldRouteMalformedJsonMessageToDeadLetterQueue() {
+        byte[] invalidJson = "{ invalid json".getBytes(StandardCharsets.UTF_8);
+        Message message = MessageBuilder.withBody(invalidJson)
+                .setContentType(MessageProperties.CONTENT_TYPE_JSON)
+                .build();
+
+        rabbitTemplate.send(
+                RabbitMQConfig.EVENT_EXCHANGE,
+                RabbitMQConfig.EVENT_CREATED_ROUTING_KEY,
+                message
+        );
+
+        Message deadLetter = rabbitTemplate.receive(
+                RabbitMQConfig.EVENT_CREATED_DLQ,
+                10000
+        );
+
+        assertNotNull(deadLetter);
+        assertArrayEquals(invalidJson, deadLetter.getBody());
+        assertTrue(deadLetter.getMessageProperties().getHeaders()
+                .containsKey("x-death"));
+        verifyNoInteractions(handler);
+    }
+
+    private void awaitQueueToDrain(String queueName) {
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(5);
+        while (System.nanoTime() < deadline) {
+            var queueInfo = rabbitAdmin.getQueueInfo(queueName);
+            if (queueInfo != null && queueInfo.getMessageCount() == 0) {
+                return;
+            }
+            try {
+                Thread.sleep(25);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while awaiting queue drain", exception);
+            }
+        }
+        fail("Queue did not drain before timeout: " + queueName);
     }
 
     private EventCreated createEvent() {

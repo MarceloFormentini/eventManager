@@ -45,6 +45,9 @@ public class OutboxEvent {
     @Column(name = "last_error")
     private String lastError;
 
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
+
     protected OutboxEvent() {
     }
 
@@ -55,6 +58,17 @@ public class OutboxEvent {
             String eventType,
             String payload
     ) {
+        this(id, aggregateType, aggregateId, eventType, payload, null);
+    }
+
+    public OutboxEvent(
+            UUID id,
+            String aggregateType,
+            Long aggregateId,
+            String eventType,
+            String payload,
+            String correlationId
+    ) {
         this.id = id;
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
@@ -64,6 +78,7 @@ public class OutboxEvent {
         this.attempts = 0;
         this.createdAt = OffsetDateTime.now();
         this.nextAttemptAt = this.createdAt;
+        this.correlationId = correlationId;
     }
 
     public UUID getId() {
@@ -108,6 +123,10 @@ public class OutboxEvent {
 
     public String getLastError() {
         return lastError;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
     }
 
     public void markPublished(OffsetDateTime publishedAt) {

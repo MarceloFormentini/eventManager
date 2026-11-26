@@ -1,0 +1,65 @@
+groups:
+  - name: event-manager-reliability
+    rules:
+      - alert: EventOutboxBacklogHigh
+        expr: event_outbox_pending > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Event Outbox backlog is growing
+          description: More than 100 events have been pending for at least 5 minutes.
+
+      - alert: EventOutboxOldestMessageStalled
+        expr: event_outbox_oldest_pending_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: An Outbox event has been pending for over 5 minutes
+          description: Check RabbitMQ connectivity and Outbox dispatcher errors.
+
+      - alert: EventOutboxEventsFailed
+        expr: event_outbox_failed > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Outbox events exhausted their retry limit
+          description: Inspect event_outbox_publish_total and application logs.
+
+      - alert: EventOutboxPublishFailures
+        expr: increase(event_outbox_publish_total{result="failure"}[5m]) >= 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Outbox publishing is repeatedly failing
+          description: At least 5 publish attempts failed in the last 5 minutes.
+
+      - alert: EventConsumerFailures
+        expr: increase(event_consumer_messages_total{result="failure"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Event consumer processing failed
+          description: Inspect consumer logs and the event.created.dlq queue.
+
+      - alert: EventDeadLetterQueueNotEmpty
+        expr: event_rabbitmq_dlq_messages > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Event dead-letter queue contains messages
+          description: Inspect and replay or discard messages according to the recovery runbook.
+
+      - alert: EventDeadLetterQueueMetricUnavailable
+        expr: event_rabbitmq_dlq_messages < 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: The event dead-letter queue metric is unavailable
+          description: Check RabbitMQ connectivity and verify the DLQ was declared.

@@ -3,6 +3,7 @@ package br.com.formentini.eventManager.outbox;
 import br.com.formentini.eventManager.outbox.OutboxEvent;
 import br.com.formentini.eventManager.outbox.OutboxEventRepository;
 
+import org.slf4j.MDC;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
@@ -40,7 +41,8 @@ public class OutboxService {
                 aggregateType,
                 aggregateId,
                 eventType,
-                payload
+                payload,
+                MDC.get("requestId")
         );
 
         outboxEventRepository.save(outboxEvent);

@@ -5,6 +5,7 @@ import br.com.formentini.eventManager.outbox.enums.OutboxStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.slf4j.MDC;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -84,6 +85,26 @@ class OutboxServiceTest {
         UUID secondId = captor.getAllValues().get(1).getId();
 
         assertNotEquals(firstId, secondId);
+    }
+
+    @Test
+    void shouldPersistTheCurrentRequestCorrelationId() {
+        MDC.put("requestId", "request-correlation-01");
+        try {
+            service.save(
+                    "EVENT",
+                    100L,
+                    "EventCreated",
+                    new TestEvent(100L, "Evento")
+            );
+        } finally {
+            MDC.remove("requestId");
+        }
+
+        ArgumentCaptor<OutboxEvent> captor =
+                ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(repository).save(captor.capture());
+        assertEquals("request-correlation-01", captor.getValue().getCorrelationId());
     }
 
     @Test

@@ -60,6 +60,52 @@ inexistentes retornam `404`, e exclusões bem-sucedidas retornam `204`.
 
 Actuator: `http://localhost:8080/actuator/health`
 
+## Operação e observabilidade
+
+Em produção, defina `DB_PASSWORD`, `RABBITMQ_USERNAME` e
+`RABBITMQ_PASSWORD` no gerenciador de secrets do ambiente de deploy. Não grave
+credenciais reais em arquivos `.env`, imagens, logs ou no repositório. O perfil
+`prod` exige essas variáveis, desativa o SQL detalhado e emite logs JSON.
+
+O Compose de produção constrói frontend e backend, mantém PostgreSQL e RabbitMQ
+em redes internas sem portas publicadas, persiste seus dados em volumes e
+inicia o Prometheus para coletar métricas. Para validar e iniciar:
+
+```sh
+docker compose -f docker-compose.production.yml config
+docker compose -f docker-compose.production.yml up --build -d
+```
+
+Configure as três variáveis secretas no ambiente antes desses comandos.
+Opcionalmente, `FRONTEND_PORT` altera a porta do frontend (padrão `3000`) e
+`PROMETHEUS_PORT` a porta local do Prometheus (padrão `9090`). Em produção,
+termine TLS e aplique controle de acesso na entrada HTTP; Prometheus fica
+publicado somente em loopback e deve ser acessado por túnel ou ferramenta
+administrativa.
+
+As métricas Prometheus ficam em `/actuator/prometheus` e incluem:
+
+| Métrica | Significado |
+| --- | --- |
+| `event_outbox_pending` | Mensagens pendentes no Outbox |
+| `event_outbox_failed` | Mensagens que esgotaram as tentativas |
+| `event_outbox_pending_attempts` | Tentativas acumuladas das mensagens pendentes |
+| `event_outbox_oldest_pending_seconds` | Idade da mensagem pendente mais antiga |
+| `event_outbox_publish_total{result=...}` | Publicações concluídas ou com falha |
+| `event_consumer_messages_total{result=...}` | Mensagens processadas, duplicadas ou com falha |
+| `event_rabbitmq_dlq_messages` | Mensagens aguardando na DLQ (`-1` indica fila ausente; gera alerta crítico) |
+
+As regras versionadas em `monitoring/alert-rules.yml` alertam sobre backlog
+crescente, eventos parados ou falhos, repetição de falhas de publicação,
+falhas de consumo e DLQ não vazia. O Prometheus avalia essas regras; configure
+um Alertmanager e seus receptores para encaminhar notificações à equipe.
+
+Requisições recebem `X-Request-Id`; IDs recebidos são aceitos somente quando
+seguem o formato seguro definido pelo backend, caso contrário é gerado um UUID.
+O identificador aparece nos logs HTTP e é persistido com o Outbox para seguir
+pela publicação e consumo da mensagem. Em chamadas HTTP, a resposta devolve o
+mesmo `X-Request-Id`.
+
 ## Testes
 
 ```powershell
